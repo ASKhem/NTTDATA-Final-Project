@@ -32,7 +32,7 @@ Los datos principales para este análisis provienen de un [conjunto de datos pú
 
 ## 3. Datasets Utilizados
 
-Se utilizan dos datasets principales, ambos con granularidad horaria para el período 2015-2018:
+Se utilizan dos datasets principales, ambos con granularidad horaria para el período 2015-2018. Para una descripción más detallada de cada dataset, consulta la [Documentación de Datasets](Documentación_general/datasets.md).
 
 ### a. Energy Dataset (`energy_dataset.csv`)
 - **Contenido:** Datos de generación de energía por múltiples fuentes (biomasa, fósiles, nuclear, solar, eólica, etc.), pronósticos de generación, demanda total (real y pronosticada) y precios de mercado (real y día siguiente) en España.
