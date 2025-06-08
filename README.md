@@ -104,19 +104,12 @@ Los entregables específicos para este proyecto incluirán:
     *   Informe de IA (máximo 3 páginas) detallando el origen de datos, feature engineering, modelos, métricas y elección final.
     *   Material de apoyo para la exposición final.
 
-## 8. Contexto Energético y Climático Relevante (2015-2018)
+## 8. Documentación Adicional
 
-Para comprender mejor los datos, se considera el siguiente contexto:
+Para una comprensión más profunda del mercado energético español y el contexto del proyecto, se han creado los siguientes documentos adicionales:
 
-*   **Evolución de la demanda eléctrica (2015-2018):** Crecimiento moderado impulsado por la recuperación económica y condiciones meteorológicas.
-*   **Generación renovable (2015-2018):** Representó entre el 36.9% y el 41.1% de la generación. La eólica fue una fuente importante.
-*   **Precios del mercado eléctrico (2015-2018):** Tendencia al alza, alcanzando 57,29 €/MWh en 2018, influenciado por precios de CO₂, combustibles fósiles y menor producción hidroeléctrica en algunos periodos.
-*   **Regulación:** Eliminación del "impuesto al sol" en 2018, fomentando el autoconsumo.
-*   **Datos Anómalos sobre Clima:**
-    *   **Olas de calor:** Junio-Julio 2015, Agosto 2016.
-    *   **Frío intenso:** Inviernos 2016 y especialmente 2017.
-    *   **Sequía:** Otoño 2017 - 2018, afectando reservas hídricas.
-    *   **Vientos fuertes:** Diciembre 2016 (temporales).
+- **[Contexto Energético en España (2015–2018)](Documentación_general/contexto_energetico.md):** Un análisis detallado de la demanda, generación, precios y regulación del sector eléctrico en el período de estudio.
+- **[Funcionamiento del Sistema Eléctrico Español](Documentación_general/sistema_electrico_espanol.md):** Una explicación de las fases (generación, transporte, distribución, comercialización) y los agentes que intervienen en el mercado eléctrico español.
 
 ## 9. Próximos Pasos / Hoja de Ruta
 
