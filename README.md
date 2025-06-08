@@ -15,20 +15,20 @@ Los datos principales para este análisis provienen de un [conjunto de datos pú
 - Predecir con mayor precisión el precio y la demanda de energía.
 - Identificar oportunidades para fomentar energías subutilizadas.
 
-## 2. Caso de Uso Detallado
+## Caso de Uso
 
-**Contexto:** Naturgy, en 2019, busca fortalecer su posición en el mercado eléctrico, promoviendo la energía eléctrica en línea con los requisitos gubernamentales, el crecimiento empresarial y los objetivos de sostenibilidad.
+**Contexto:** Somos Naturgy en 2019 y queremos seguir impulsando el auge de la energía eléctrica para cumplir requisitos gubernamentales, para crecer como empresa, para ser más verdes y toda la pesca.
 
-**Problema de Negocio:** La empresa necesita una mejor comprensión de la dinámica del mercado energético español, incluyendo cómo factores como el clima y los patrones de consumo afectan la generación y los precios. Esto permitirá una planificación más eficiente, optimizar la generación de energía renovable y mejorar las estrategias de mercado.
-
-**Preguntas Clave a Responder:**
-- ¿Cómo influye el clima de las principales ciudades españolas en la producción y demanda energética?
-- ¿En qué períodos se consumen más energías renovables y de qué factores depende?
-- ¿Cuál es la evolución histórica del consumo y hacia dónde tiende el mercado?
-- ¿Qué tipos de energía son los más consumidos por hora?
-- ¿Cómo se pueden mejorar las predicciones de precio y demanda energética utilizando datos climáticos?
-- ¿Qué energías poco utilizadas tienen potencial de crecimiento y cómo pueden las condiciones climáticas locales guiar su fomento?
-- ¿Cuál es el margen de error de las predicciones actuales del TSO y cómo se compara con nuestros modelos predictivos más avanzados?
+### Objetivos del análisis:
+- Necesitamos más insights en función de los datos sobre el consumo de renovables versus fósiles en el mercado para conocer nuestros puntos débiles y fuertes
+- Analizar cómo influye el clima de España en la producción
+- Identificar en qué períodos temporales se consumen más renovables y en cuáles menos, ¿de qué depende?
+- Conocer la evolución del consumo de energías a lo largo de los años → ¿hacia qué tendemos?
+- Determinar qué tipos de energía se consumen más por hora
+- Visualizar cuánto se ha fallado en predicciones
+- Intentar predecir más ajustadamente el precio y la cantidad de energía que se va a necesitar usando el tiempo de las 5 grandes ciudades
+- Ver las condiciones climáticas de cada ciudad para ver qué fomentar
+- Identificar energías poco usadas que se puedan fomentar
 
 ## 3. Datasets Utilizados
 
