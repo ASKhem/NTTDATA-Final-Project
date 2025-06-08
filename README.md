@@ -27,8 +27,8 @@ Los datos principales para este análisis provienen de un [conjunto de datos pú
 - ¿Cuál es la evolución histórica del consumo y hacia dónde tiende el mercado?
 - ¿Qué tipos de energía son los más consumidos por hora?
 - ¿Cómo se pueden mejorar las predicciones de precio y demanda energética utilizando datos climáticos?
-- ¿Existen energías con potencial de crecimiento que Naturgy podría fomentar?
-- ¿Cómo se comparan las predicciones actuales del Operador del Sistema de Transmisión (TSO) con modelos predictivos más avanzados?
+- ¿Qué energías poco utilizadas tienen potencial de crecimiento y cómo pueden las condiciones climáticas locales guiar su fomento?
+- ¿Cuál es el margen de error de las predicciones actuales del TSO y cómo se compara con nuestros modelos predictivos más avanzados?
 
 ## 3. Datasets Utilizados
 
