@@ -30,6 +30,7 @@ Cada mensaje de commit debe seguir la siguiente estructura:
     *   `style`: Cambios menores de formato en scripts o documentos que no alteran la lógica.
     *   `infra`: Cambios relacionados con la infraestructura en Google Cloud (ej. Terraform, configuraciones de servicios).
     *   `config`: Cambios en archivos de configuración.
+    *   `new`: Para la creación de nuevos archivos.
 
 2.  **Ámbito (Opcional)**: Especifica la parte del proyecto afectada. Ejemplos: `BigData/Codigo_ETL`, `InteligenciaArtificial/Notebook_IA`, `Documentacion_general`, `GCP/Terraform`, `Scripts_Adicionales`.
     *   Ejemplo: `docs(BigData/Documentacion_BigData): actualizar modelo de datos`
@@ -51,6 +52,11 @@ Cada mensaje de commit debe seguir la siguiente estructura:
         \`\`\`
 
 ### Ejemplos de Mensajes de Commit
+
+*   **Creación de un nuevo archivo:**
+    \`\`\`
+    new(Documentacion_general): añadir guía de estilo para markdown
+    \`\`\`
 
 *   **Nueva característica en un ámbito específico:**
     \`\`\`
