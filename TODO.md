@@ -13,8 +13,8 @@
   - ✅ Carga de los datasets crudos a la capa "raw" de GCS.
 
 - ⬜️ **3. Documentación Inicial**
-  - ⬜️ Creación del documento de modelo de datos (`modelo_de_datos_ejemplo.md`).
-  - ⬜️ Creación del documento de plan de pruebas (`plan_de_pruebas_ejemplo.md`) la parte teórica se podría encontrar en (`plan_de_pruebas_teoría.md`).
+  - ⬜️ Creación del documento de modelo de datos ([`modelo_de_datos_ejemplo.md`](./0_BigData/Documentacion_BigData/modelo_de_datos_ejemplo..md)).
+  - ⬜️ Creación del documento de plan de pruebas ([`plan_de_pruebas_ejemplo.md`](./0_BigData/Documentacion_BigData/plan_de_pruebas_ejemplo.md)) la parte teórica se podría encontrar en ([`plan_de_pruebas_teorico.md`](./0_BigData/Documentacion_BigData/plan_de_pruebas_teorico.md)).
 
 - ⬜️ **4. Implementación Ingesta y Modelado (Pipeline ETL con Spark)**
   - ⬜️ Lectura de datos desde GCS.
@@ -24,7 +24,7 @@
   - ⬜️ Carga de los datos procesados de GCS a BigQuery.
 
 - ⬜️ **5. Revisión y Ejecución de Calidad del Dato**
-  - ⬜️ Implementación de las validaciones del `plan_pruebas_ejemplo.md` en el script de Spark.
+  - ⬜️ Implementación de las validaciones del [`plan_de_pruebas_ejemplo.md`](./0_BigData/Documentacion_BigData/plan_de_pruebas_ejemplo.md) en el script de Spark.
   - ⬜️ Generación de un reporte de calidad.
   - ⬜️ Ejecución formal del plan de pruebas documentando evidencias.
 

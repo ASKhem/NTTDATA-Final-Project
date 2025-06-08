@@ -33,5 +33,5 @@ Estas pruebas se aplicarán a la tabla procesada antes de cargarla en BigQuery.
 Para cada ejecución del pipeline ETL, se generará un reporte que contendrá:
 - Resumen de la ejecución (fecha, hora, duración).
 - Número de filas procesadas, aceptadas y rechazadas.
-- Detalle de las pruebas fallidas y el número de filas afectadas por cada una, siguiendo el formato de la tabla de ejemplo del plan teórico.
+- Detalle de las pruebas fallidas y el número de filas afectadas por cada una, siguiendo el formato de la tabla de ejemplo del [plan teórico](./plan_de_pruebas_teorico.md).
 - Muestras de filas que no pasaron las pruebas de calidad.
