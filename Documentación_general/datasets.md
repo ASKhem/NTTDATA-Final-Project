@@ -13,7 +13,7 @@ Este proyecto contiene dos datasets principales relacionados con energía y clim
 - **Región**: España
 - **Frecuencia**: Horaria
 
-### Descripción de Columnas
+### Descripción de Columnas  
 
 #### Columna Temporal
 - **`time`**: Timestamp en formato ISO 8601 con zona horaria (+01:00)

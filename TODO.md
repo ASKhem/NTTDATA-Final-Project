@@ -16,12 +16,14 @@
   - ⬜️ Creación del documento de modelo de datos ([`modelo_de_datos_ejemplo.md`](./0_BigData/Documentacion_BigData/modelo_de_datos_ejemplo..md)).
   - ⬜️ Creación del documento de plan de pruebas ([`plan_de_pruebas_ejemplo.md`](./0_BigData/Documentacion_BigData/plan_de_pruebas_ejemplo.md)) la parte teórica se podría encontrar en ([`plan_de_pruebas_teorico.md`](./0_BigData/Documentacion_BigData/plan_de_pruebas_teorico.md)).
 
-- ⬜️ **4. Implementación Ingesta y Modelado (Pipeline ETL con Spark)**
-  - ⬜️ Lectura de datos desde GCS.
-  - ⬜️ Limpieza, transformación y unión de los datasets.
-  - ⬜️ Aplicación de reglas de negocio y feature engineering básico (ej. conversión Kelvin a Celsius, creación de variables temporales).
-  - ⬜️ Escritura de los datos procesados en formato Parquet en la capa "processed" de GCS.
-  - ⬜️ Carga de los datos procesados de GCS a BigQuery.
+- ✅ **4. Implementación Ingesta y Modelado (Pipeline ETL con Spark)**
+  - ✅ Lectura de datos desde GCS.
+  - ✅ Limpieza y transformación de los datasets (Capa Silver).
+  - ✅ Aplicación de reglas de negocio y feature engineering básico (ej. conversión Kelvin a Celsius).
+  - ✅ Escritura de los datos procesados en formato Parquet en la capa "silver" de GCS.
+  - ⬜️ **Consumo de Capa Silver**:
+    - ⬜️ Carga de los datos de GCS a BigQuery para consumo de BI.
+    - ⬜️ Unión de los datasets en el entorno de EDA/ML para la creación de la tabla de entrenamiento.
 
 - ⬜️ **5. Revisión y Ejecución de Calidad del Dato**
   - ⬜️ Implementación de las validaciones del [`plan_de_pruebas_ejemplo.md`](./0_BigData/Documentacion_BigData/plan_de_pruebas_ejemplo.md) en el script de Spark.

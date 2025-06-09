@@ -13,15 +13,17 @@ Ubicación en Arquitectura:
 
 - Ingesta de datos: Cloud Functions (activación) → Cloud Scheduler
 - Procesamiento: Cloud Dataproc (Spark) en la "Pipeline de datos (ETL)"
-- Almacenamiento: Cloud Storage (capas raw/processed) → BigQuery
-Carpeta del Proyecto: 0_BigData/Codigo_ETL/
+- Almacenamiento: Cloud Storage (capas raw/silver)
+Carpeta del Proyecto: 0_BigData/Codigo_ETL/ETL_produccion/
 
 Flujo específico en la arquitectura:
 
-1. Lectura desde GCS → Zona "Guardar en GCS" (capa raw)
-2. Procesamiento Spark → Componente "Cloud Dataproc" central
-3. Escritura Parquet → Zona "Guardar en GCS" (capa processed)
-4. Carga a BigQuery → Flecha hacia "BigQuery (DWH)"
+1.  **Lectura desde GCS**: El pipeline lee desde la capa `raw`.
+2.  **Procesamiento Spark**: El clúster de `Cloud Dataproc` ejecuta la limpieza y transformación.
+3.  **Escritura en Capa Silver**: El resultado se guarda como ficheros Parquet en la capa `silver` de GCS.
+4.  **Consumo posterior**:
+    *   **BI**: Un proceso posterior (ej. otra Cloud Function, Dataflow) carga los datos de la capa `silver` a `BigQuery`.
+    *   **ML/EDA**: Los notebooks o pipelines de Vertex AI leen directamente de la capa `silver` para realizar la unión y el feature engineering.
 ### Tarea 5: Calidad del Dato
 Ubicación en Arquitectura: Integrado en el pipeline de Spark (Cloud Dataproc)
 Carpeta del Proyecto: 0_BigData/Scripts_Adicionales_BigData/
