@@ -1,5 +1,5 @@
 from pyspark.sql import SparkSession
-from pyspark.sql.functions import col, year, month, dayofmonth, dayofweek, weekofyear, when, expr, lit, create_map
+from pyspark.sql.functions import col, year, month, dayofmonth, dayofweek, weekofyear, when, expr, lit, create_map, sha2, concat_ws, AnalysisException
 from itertools import chain
 
 spark = SparkSession.builder.appName("SparkModeling").getOrCreate()
@@ -29,7 +29,7 @@ dim_time = weather_df.select("time").withColumn("year", year("time")) \
         ((col("month") == 6) & (col("day") >= 21)) | ((col("month") == 7)) | ((col("month") == 8)) | ((col("month") == 9) & (col("day") <= 20)),
         "summer"
     ).otherwise("autumn")) \
-    .withColumn("timeID", expr("monotonically_increasing_id()"))
+    .withColumn("timeID", sha2(col("time").cast("string"), 256))
 
 dim_time=dim_time.drop('day')
 
@@ -49,7 +49,7 @@ city_data = {
     "Bilbao": {"latitude": 43.26292, "longitude": -2.93623, "province_population": 1153000},
 }
 
-dim_city = weather_df.select("city_name").distinct().withColumn("cityID", expr("monotonically_increasing_id()"))
+dim_city = weather_df.select("city_name").distinct().withColumn("cityID", sha2(col('city_name'), 256))
 
 
 dim_city = dim_city.withColumn("latitude", lit("Unknown")) \
@@ -75,10 +75,12 @@ dim_city = dim_city.select(*desired_order_city)
 # ============================
 # Unimos con city para tener cityID
 fact_weather = weather_df.join(dim_city, ["city_name"], "left") \
-    .selectExpr("monotonically_increasing_id() as weatherID", "time", "cityID",
+    .selectExpr( "time", "cityID",
                 "temp", "temp_min", "temp_max", "pressure", "humidity", "wind_speed", "wind_deg",
                 "rain_1h", "rain_3h", "snow_3h", "clouds_all",
-                "weather_main", "weather_description")
+                "weather_main", "weather_description") \
+    .withColumn("weatherID", sha2(concat_ws("_", "time", "cityID"), 256))
+
 
 # ============================
 # DIM_energy_type
@@ -90,7 +92,7 @@ energy_types = [(col_name.replace("generation ", ""),
                 for col_name in energy_columns]
 
 dim_energy_type = spark.createDataFrame(energy_types, ["name", "is_renewable"]) \
-    .withColumn("energyID", expr("monotonically_increasing_id()"))
+    .withColumn("energyID", sha2(col("name").cast("string"), 256))
 
 #Ordenación columnas
 desired_order_type = ["energyID", "name", "is_renewable"]
@@ -99,7 +101,6 @@ dim_energy_type = dim_energy_type.select(*desired_order_type)
 # ============================
 # FACT_energy_generation
 # ============================
-# Convertimos a formato long (unpivot de las columnas de generación)
 
 mappings = list(chain.from_iterable([(lit(k.replace("generation ", "")), col(k)) for k in energy_columns]))
 
@@ -109,7 +110,8 @@ energy_long_df = energy_df.select("time", *energy_columns) \
     .selectExpr("time", "explode(generation_map) as (energy_name, value)")
 
 fact_energy_generation = energy_long_df.join(dim_energy_type, energy_long_df.energy_name == dim_energy_type.name, "left") \
-    .selectExpr("monotonically_increasing_id() as generationID", "time", "energyID", "value")
+    .selectExpr( "time", "energyID", "value") \
+    .withColumn("generationID", sha2(concat_ws("_", "time", "energyID"), 256))
 
 #Ordenación columnas
 desired_order_generation = ["generationID", "time", "energyID", "value"]
@@ -120,32 +122,34 @@ fact_energy_generation = fact_energy_generation.select(*desired_order_generation
 # FACT_energy_usage
 # ============================
 fact_energy_usage = energy_df.selectExpr(
-    "monotonically_increasing_id() as usageID",
     "time",
     "`price actual` as price_actual",
     "`total load actual` as total_load_actual",
     "`generation waste` as generation_waste"
-)
+) \
+.withColumn("usageID", sha2(col("time").cast("string"), 256))
+
 
 # ============================
 # FACT_electricity_forecast
 # ============================
 fact_elec_forecast = energy_df.selectExpr(
-    "monotonically_increasing_id() as elecForecastID",
     "time",
     "`price day ahead` as price_forecast",
     "`total load forecast` as total_load_forecast"
-)
+) \
+.withColumn("elecForecastID", sha2(col("time").cast("string"), 256))
+
 
 # ============================
 # FACT_weather_forecast
 # ============================
 fact_weather_forecast = energy_df.selectExpr(
-    "monotonically_increasing_id() as weatherForecastID",
     "time",
     "`forecast solar day ahead` as forecast_solar_day_ahead",
     "`forecast wind onshore day ahead` as forecast_wind_onshore_day_ahead"
-)
+) \
+.withColumn("weatherForecastID", sha2(col("time").cast("string"), 256))
 
 
 # ============================
@@ -163,23 +167,38 @@ fact_weather_forecast = fact_weather_forecast.join(dim_time.select("time", "time
     .drop("time")
 
 
-def write_table(df, name):
-    df.write \
+def take_new_data(df, name, unique_key):
+    try:
+        existing_table = spark.read \
+            .format("bigquery") \
+            .option("table", f"naturgy-gcs.naturgy_data.{name}") \
+            .load()
+        table_exists = True
+    except AnalysisException:
+        table_exists = False
+
+    if table_exists:
+        new_data = df.join(existing_table, on=unique_key, how="left_anti")
+    else:
+        new_data = df 
+    return new_data
+
+def save_table(df, name, unique_key):
+    new_data=take_new_data(df, name, unique_key)
+    new_data.write \
     .format("bigquery") \
     .option("table", f"naturgy-gcp.naturgy_data.{name}") \
     .option("temporaryGcsBucket", "temporal_bucket_trials") \
-    .mode("overwrite") \
+    .mode("append") \
     .save()
 
-write_table(dim_time, "dim_time")
-write_table(dim_city, "dim_city")
-write_table(dim_energy_type, "dim_energy_type")
-write_table(fact_weather, "fact_weather")
-write_table(fact_energy_usage, "fact_energy_usage")
-write_table(fact_weather_forecast, "fact_weather_forecast")
-write_table(fact_elec_forecast, "fact_elec_forecast")
-write_table(fact_energy_generation, "fact_energy_generation")
-
-
+save_table(dim_time, "dim_time", ["time"])
+save_table(dim_city, "dim_city", ["city_name"])
+save_table(dim_energy_type, "dim_energy_type", ["name"])
+save_table(fact_weather, "fact_weather", ["time"])
+save_table(fact_energy_usage, "fact_energy_usage", ["time", "energyID"])
+save_table(fact_weather_forecast, "fact_weather_forecast", ["time", "cityID"])
+save_table(fact_elec_forecast, "fact_elec_forecast", ["time"])
+save_table(fact_energy_generation, "fact_energy_generation", ["time"])
 
 spark.stop()
