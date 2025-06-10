@@ -1,6 +1,7 @@
 from pyspark.sql import SparkSession
 from pyspark.sql.functions import col, year, month, dayofmonth, dayofweek, weekofyear, when, expr, lit, create_map, sha2, concat_ws, AnalysisException
 from itertools import chain
+from logger_config import logger
 
 spark = SparkSession.builder.appName("SparkModeling").getOrCreate()
 
