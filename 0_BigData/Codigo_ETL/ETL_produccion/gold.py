@@ -5,7 +5,9 @@ from pyspark.sql.functions import (
 )
 from itertools import chain
 from pyspark.sql.utils import AnalysisException
+from py4j.protocol import Py4JJavaError
 from logger_config import logger
+import json
 
 def create_spark_session():
     """Inicializa y devuelve una SparkSession."""
@@ -70,13 +72,10 @@ def process_dim_city(weather_df):
     :return dim_city: dimensión de la ciudad
     """
     logger.info("Procesando tabla dim_city...")
-    city_data = {
-        "Madrid": {"latitude": 40.414852, "longitude": -3.69765, "province_population": 6825000},
-        " Barcelona": {"latitude": 41.38594, "longitude": 2.17451, "province_population": 5877672},
-        "Valencia": {"latitude": 39.47192, "longitude": -0.37593, "province_population": 2710808},
-        "Seville": {"latitude": 37.38995, "longitude": -5.98578, "province_population":  1968624 },
-        "Bilbao": {"latitude": 43.26292, "longitude": -2.93623, "province_population": 1153000},
-    }
+    with open("external_data.json", "r") as file:
+        data = json.load(file)
+
+    city_data = data["city_data"]
 
     dim_city = weather_df.select("city_name").distinct().withColumn("cityID", sha2(col('city_name'), 256)) \
         .withColumn("latitude", lit("Unknown")) \
@@ -106,7 +105,7 @@ def process_fact_weather(weather_df, dim_city):
             "weather_main", "weather_description") \
         .withColumn("weatherID", sha2(concat_ws("_", "time", "cityID"), 256))
 
-def process_dim_energy_type(energy_df):
+def process_dim_energy_type(energy_df, spark):
     """
     Genera la tabla dimensión de tipos de energía.
         :param energy_df: DataFrame energy
@@ -114,10 +113,14 @@ def process_dim_energy_type(energy_df):
     """
     logger.info("Procesando tabla dim_energy_type...")
     energy_columns = [col for col in energy_df.columns if col.startswith("generation")]
-    energy_types = [(col_name.replace("generation ", ""),
-                    any(kw in col_name for kw in ["biomass", "geothermal", "renewable", "hydro", "marine", "solar", "wind"]))
-                    for col_name in energy_columns]
+    
+    with open("external_data.json", "r") as file:
+        data = json.load(file)
 
+    renewable_energies = data["renewable_energies"]
+    energy_types = [(col_name.replace("generation ", ""),
+                    any(kw in col_name for kw in renewable_energies))
+                    for col_name in energy_columns]
     dim_energy_type = spark.createDataFrame(energy_types, ["name", "is_renewable"]) \
         .withColumn("energyID", sha2(col("name").cast("string"), 256))
 
@@ -192,7 +195,7 @@ def join_with_time_id(fact_df, dim_time):
     """
     return fact_df.join(dim_time.select("time", "timeID"), on="time", how="left").drop("time")
 
-def take_new_data(df, name, unique_key):
+def take_new_data(df, name, unique_key, spark):
     """
     Compara la nueva tabla con BigQuery para evitar duplicados.
 
@@ -205,14 +208,14 @@ def take_new_data(df, name, unique_key):
         logger.info(f"Comprobando existencia de tabla: {name}")
         existing_table = spark.read \
             .format("bigquery") \
-            .option("table", f"naturgy-gcs.naturgy_data.{name}") \
+            .option("table", f"gold_data.{name}") \
             .load()
         return df.join(existing_table, on=unique_key, how="left_anti")
-    except AnalysisException:
+    except (AnalysisException, Py4JJavaError):
         logger.info(f"Tabla {name} no existe aún, se considerará toda la tabla como nueva.")
         return df
 
-def save_table(df, name, unique_key):
+def save_table(df, name, unique_key, spark):
     """
     Guarda la tabla en BigQuery.
     :param df: Dataframe a insertar
@@ -220,10 +223,10 @@ def save_table(df, name, unique_key):
     :param unique_key: columnas únicas de la tabla
     """
     logger.info(f"Guardando tabla: {name}")
-    new_data = take_new_data(df, name, unique_key)
+    new_data = take_new_data(df, name, unique_key, spark)
     new_data.write \
         .format("bigquery") \
-        .option("table", f"naturgy-gcp.naturgy_data.{name}") \
+        .option("table", f"gold_data.{name}") \
         .option("temporaryGcsBucket", "temporal_bucket_trials") \
         .mode("append") \
         .save()
@@ -235,7 +238,7 @@ def main():
     dim_time = process_dim_time(weather_df)
     dim_city = process_dim_city(weather_df)
     fact_weather = process_fact_weather(weather_df, dim_city)
-    dim_energy_type = process_dim_energy_type(energy_df)
+    dim_energy_type = process_dim_energy_type(energy_df, spark)
     fact_energy_generation = process_fact_energy_generation(energy_df, dim_energy_type)
     fact_energy_usage = process_fact_energy_usage(energy_df)
     fact_elec_forecast = process_fact_elec_forecast(energy_df)
@@ -247,14 +250,14 @@ def main():
     fact_elec_forecast = join_with_time_id(fact_elec_forecast, dim_time)
     fact_weather_forecast = join_with_time_id(fact_weather_forecast, dim_time)
 
-    save_table(dim_time, "dim_time", ["time"])
-    save_table(dim_city, "dim_city", ["city_name"])
-    save_table(dim_energy_type, "dim_energy_type", ["name"])
-    save_table(fact_weather, "fact_weather", ["timeID", "cityID"])
-    save_table(fact_energy_usage, "fact_energy_usage", ["timeID"])
-    save_table(fact_weather_forecast, "fact_weather_forecast", ["timeID"])
-    save_table(fact_elec_forecast, "fact_elec_forecast", ["timeID"])
-    save_table(fact_energy_generation, "fact_energy_generation", ["timeID", "energyID"])
+    save_table(dim_time, "dim_time", ["time"], spark)
+    save_table(dim_city, "dim_city", ["city_name"], spark)
+    save_table(dim_energy_type, "dim_energy_type", ["name"], spark)
+    save_table(fact_weather, "fact_weather", ["timeID", "cityID"], spark)
+    save_table(fact_energy_usage, "fact_energy_usage", ["timeID"], spark)
+    save_table(fact_weather_forecast, "fact_weather_forecast", ["timeID"], spark)
+    save_table(fact_elec_forecast, "fact_elec_forecast", ["timeID"], spark)
+    save_table(fact_energy_generation, "fact_energy_generation", ["timeID", "energyID"], spark)
 
     logger.info("Proceso finalizado.")
     spark.stop()
