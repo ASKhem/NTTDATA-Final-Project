@@ -25,7 +25,11 @@ def read_data(spark):
     input_path_weather = f"gs://{gcs_bucket_name}/silver_data/weather_features_silver.parquet"
     
     weather_df = spark.read.parquet(input_path_weather)
+    weather_df = weather_df.toDF(*[col.strip() for col in weather_df.columns])
+
     energy_df = spark.read.parquet(input_path_energy)
+    energy_df = energy_df.toDF(*[col.strip() for col in energy_df.columns])
+
     logger.info("Datos cargados correctamente.")
     return weather_df, energy_df
 
@@ -68,7 +72,7 @@ def process_dim_city(weather_df):
     logger.info("Procesando tabla dim_city...")
     city_data = {
         "Madrid": {"latitude": 40.414852, "longitude": -3.69765, "province_population": 6825000},
-        "Barcelona": {"latitude": 41.38594, "longitude": 2.17451, "province_population": 5877672},
+        " Barcelona": {"latitude": 41.38594, "longitude": 2.17451, "province_population": 5877672},
         "Valencia": {"latitude": 39.47192, "longitude": -0.37593, "province_population": 2710808},
         "Seville": {"latitude": 37.38995, "longitude": -5.98578, "province_population":  1968624 },
         "Bilbao": {"latitude": 43.26292, "longitude": -2.93623, "province_population": 1153000},
