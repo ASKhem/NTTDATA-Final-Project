@@ -12,10 +12,10 @@ with DAG('etl-pipeline',
          schedule_interval='@monthly', 
          catchup=False) as dag:
 
-    # run_data_quality = BashOperator(
-    #     task_id='run_data_quality',
-    #     bash_command='gcloud dataproc jobs submit pyspark gs://naturgy-gcs/scripts/data_quality.py --cluster=naturgy-spark --region=europe-southwest1 --py-files gs://naturgy-gcs/scripts/logger_config.py'
-    # )
+    run_data_quality = BashOperator(
+        task_id='run_data_quality',
+        bash_command='gcloud dataproc jobs submit pyspark gs://naturgy-gcs/scripts/data_quality.py --cluster=naturgy-spark --region=europe-southwest1 --py-files gs://naturgy-gcs/scripts/logger_config.py'
+    )
 
     run_silver = BashOperator(
         task_id='run_silver',
@@ -27,4 +27,4 @@ with DAG('etl-pipeline',
         bash_command='gcloud dataproc jobs submit pyspark gs://naturgy-gcs/scripts/gold.py --cluster=naturgy-spark --region=europe-southwest1 --py-files gs://naturgy-gcs/scripts/logger_config.py --files gs://naturgy-gcs/scripts/external_data.json'
     )
 
-    run_silver >> run_gold
+    run_data_quality >> run_silver >> run_gold
