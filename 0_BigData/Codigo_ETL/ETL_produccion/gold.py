@@ -1,7 +1,8 @@
 from pyspark.sql import SparkSession
 from pyspark.sql.functions import (
     col, year, month, dayofmonth, dayofweek, weekofyear, when, expr, lit,
-    create_map, sha2, concat_ws, explode
+    create_map, sha2, concat_ws, explode, sequence
+
 )
 from itertools import chain
 from pyspark.sql.utils import AnalysisException
@@ -35,14 +36,40 @@ def read_data(spark):
     logger.info("Datos cargados correctamente.")
     return weather_df, energy_df
 
-def process_dim_time(weather_df):
+
+
+
+
+
+def process_dim_time(weather_df, spark):
     """
     Genera la tabla dimensión de tiempo.
     :param weather_df: DataFrame weather
     :return dim_time: dimensión del tiempo
     """
+    time_bounds = weather_df.selectExpr(
+    "min(time) as min_time",
+    "max(time) as max_time"
+    ).collect()[0]
+
+    min_time = time_bounds["min_time"]
+    max_time = time_bounds["max_time"]
+    time_df = spark.createDataFrame(
+        [(min_time, max_time)],
+        ["start", "end"]
+    ).select(
+        explode(
+            sequence(
+                lit(min_time),
+                lit(max_time),
+                expr("interval 1 hour")
+            )
+        ).alias("time")
+    )
+
+
     logger.info("Procesando tabla dim_time...")
-    dim_time = weather_df.select("time").withColumn("year", year("time")) \
+    dim_time = time_df.withColumn("year", year("time")) \
         .withColumn("month", month("time")) \
         .withColumn("week_day", dayofweek("time")) \
         .withColumn("week_number_of_month", weekofyear("time")) \
@@ -90,7 +117,7 @@ def process_dim_city(weather_df):
     desired_order_city = ["cityID", "city_name", "latitude", "longitude", "province_population"]
     return dim_city.select(*desired_order_city)
 
-def process_fact_weather(weather_df, dim_city):
+def process_fact_weather(weather_df, dim_city, dim_time):
     """
     Genera la tabla de hechos del clima.
         :param weather_df: DataFrame weather
@@ -99,11 +126,12 @@ def process_fact_weather(weather_df, dim_city):
     """
     logger.info("Procesando tabla fact_weather...")
     return weather_df.join(dim_city, ["city_name"], "left") \
-        .selectExpr(
-            "time", "cityID", "temp", "temp_min", "temp_max", "pressure", "humidity",
+        .join(dim_time.select("time", "timeID"), ["time"], "left") \
+        .select(
+            "timeID", "cityID", "temp", "temp_min", "temp_max", "pressure", "humidity",
             "wind_speed", "wind_deg", "rain_1h", "rain_3h", "snow_3h", "clouds_all",
             "weather_main", "weather_description") \
-        .withColumn("weatherID", sha2(concat_ws("_", "time", "cityID"), 256))
+        .withColumn("weatherID", sha2(concat_ws("_", "timeID", "cityID"), 256))
 
 def process_dim_energy_type(energy_df, spark):
     """
@@ -137,10 +165,11 @@ def process_fact_energy_generation(energy_df, dim_energy_type):
     logger.info("Procesando tabla fact_energy_generation...")
     energy_columns = [col for col in energy_df.columns if col.startswith("generation")]
     mappings = list(chain.from_iterable([(lit(k.replace("generation ", "")), col(k)) for k in energy_columns]))
-
     energy_long_df = energy_df.select("time", *energy_columns) \
         .select("time", create_map(*mappings).alias("generation_map")) \
         .select("time", explode("generation_map").alias("energy_name", "value"))
+    
+    energy_long_df = energy_long_df.withColumn("value", col("value").cast("int"))
 
     return energy_long_df.join(dim_energy_type, energy_long_df.energy_name == dim_energy_type.name, "left") \
         .select("time", "energyID", "value") \
@@ -235,16 +264,16 @@ def main():
     spark = create_spark_session()
     weather_df, energy_df = read_data(spark)
 
-    dim_time = process_dim_time(weather_df)
+    dim_time = process_dim_time(weather_df, spark)
     dim_city = process_dim_city(weather_df)
-    fact_weather = process_fact_weather(weather_df, dim_city)
+    fact_weather = process_fact_weather(weather_df, dim_city, dim_time)
     dim_energy_type = process_dim_energy_type(energy_df, spark)
     fact_energy_generation = process_fact_energy_generation(energy_df, dim_energy_type)
     fact_energy_usage = process_fact_energy_usage(energy_df)
     fact_elec_forecast = process_fact_elec_forecast(energy_df)
     fact_weather_forecast = process_fact_weather_forecast(energy_df)
 
-    fact_weather = join_with_time_id(fact_weather, dim_time)
+    # fact_weather = join_with_time_id(fact_weather, dim_time)
     fact_energy_generation = join_with_time_id(fact_energy_generation, dim_time)
     fact_energy_usage = join_with_time_id(fact_energy_usage, dim_time)
     fact_elec_forecast = join_with_time_id(fact_elec_forecast, dim_time)
