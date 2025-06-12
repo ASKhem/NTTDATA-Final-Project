@@ -21,35 +21,34 @@
   - ✅ Limpieza y transformación de los datasets (Capa Silver).
   - ✅ Aplicación de reglas de negocio y feature engineering básico (ej. conversión Kelvin a Celsius).
   - ✅ Escritura de los datos procesados en formato Parquet en la capa "silver" de GCS.
-  - ⬜️ **Consumo de Capa Silver**:
-    - ⬜️ Carga de los datos de GCS a BigQuery para consumo de BI.
-    - ⬜️ Unión de los datasets en el entorno de EDA/ML para la creación de la tabla de entrenamiento.
+  - ✅ **Consumo de Capa Silver**:
+    - ✅ Carga de los datos de GCS a BigQuery para consumo de BI.
 
 - ⬜️ **5. Revisión y Ejecución de Calidad del Dato**
   - ⬜️ Implementación de las validaciones del [`plan_de_pruebas_ejemplo.md`](./0_BigData/Documentacion_BigData/plan_de_pruebas_ejemplo.md) en el script de Spark.
   - ⬜️ Generación de un reporte de calidad.
-  - ⬜️ Ejecución formal del plan de pruebas documentando evidencias.
+  - ✅ Ejecución formal del plan de pruebas documentando evidencias.
 
 - ⬜️ **6. Implementación Dashboard Power BI**
-  - ⬜️ Conexión de Power BI a la tabla final en BigQuery.
-  - ⬜️ Modelado de datos en Power BI (medidas DAX, jerarquías).
+  - ✅ Conexión de Power BI a la tabla final en BigQuery.
+  - ✅ Modelado de datos en Power BI (medidas DAX, jerarquías).
   - ⬜️ Creación del cuadro de mando interactivo.
 
 ## Bloque 2: Inteligencia Artificial
 
 - ⬜️ **7. Feature Engineering Avanzado (Local)**
-  - ⬜️ Análisis Exploratorio de Datos (EDA) en un entorno local (ej. Jupyter Notebook).
-  - ⬜️ Estudio de distribución, correlaciones, etc.
-  - ⬜️ Creación de características específicas para el modelo (lags, medias móviles, indicadores de eventos climáticos).
-  - ⬜️ Generación de la función/pipeline de preprocesamiento para asegurar la reproducibilidad.
-  - ⬜️ División de datos en train/test de forma cronológica.
+  - ✅ Análisis Exploratorio de Datos (EDA) en un entorno local (ej. Jupyter Notebook).
+  - ✅ Estudio de distribución, correlaciones, etc.
+  - ✅ Creación de características específicas para el modelo (lags, medias móviles, indicadores de eventos climáticos).
+  - ✅ Generación de la función/pipeline de preprocesamiento para asegurar la reproducibilidad.
+  - ✅ División de datos en train/test de forma cronológica.
 
-- ⬜️ **8. Entrenamiento y Evaluación de Modelos**
-  - ⬜️ Experimentos comparando distintos modelos (mínimo 2, incluyendo una red neuronal).
-  - ⬜️ Justificación de algoritmos e hiperparámetros.
-  - ⬜️ Para la red neuronal: justificación de la arquitectura, función de activación y de error.
-  - ⬜️ Comparativa de métricas (MAE, RMSE, R², etc.) en train y test.
-  - ⬜️ Selección del mejor modelo.
+- ✅ **8. Entrenamiento y Evaluación de Modelos**
+  - ✅ Experimentos comparando distintos modelos (mínimo 2, incluyendo una red neuronal).
+  - ✅ Justificación de algoritmos e hiperparámetros.
+  - ✅ Para la red neuronal: justificación de la arquitectura, función de activación y de error.
+  - ✅ Comparativa de métricas (MAE, RMSE, R², etc.) en train y test.
+  - ✅ Selección del mejor modelo.
 
 ## Bloque 3: Entrega Final
 
