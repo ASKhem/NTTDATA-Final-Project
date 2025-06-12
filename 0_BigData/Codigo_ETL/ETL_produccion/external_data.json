@@ -1,0 +1,30 @@
+{
+    "city_data": {
+        "Madrid": {
+            "latitude": 40.414852,
+            "longitude": -3.69765,
+            "province_population": 6825000
+        },
+        " Barcelona": {
+            "latitude": 41.38594,
+            "longitude": 2.17451,
+            "province_population": 5877672
+        },
+        "Valencia": {
+            "latitude": 39.47192,
+            "longitude": -0.37593,
+            "province_population": 2710808
+        },
+        "Seville": {
+            "latitude": 37.38995,
+            "longitude": -5.98578,
+            "province_population": 1968624
+        },
+        "Bilbao": {
+            "latitude": 43.26292,
+            "longitude": -2.93623,
+            "province_population": 1153000
+        }
+    },
+    "renewable_energies": ["biomass", "geothermal", "renewable", "hydro", "marine", "solar", "wind"]
+}

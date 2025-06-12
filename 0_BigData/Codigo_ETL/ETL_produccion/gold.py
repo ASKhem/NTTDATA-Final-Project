@@ -1,16 +1,23 @@
 from pyspark.sql import SparkSession
 from pyspark.sql.functions import (
     col, year, month, dayofmonth, dayofweek, weekofyear, when, expr, lit,
-    create_map, sha2, concat_ws, explode
+    create_map, sha2, concat_ws, explode, sequence
+
 )
 from itertools import chain
 from pyspark.sql.utils import AnalysisException
+from py4j.protocol import Py4JJavaError
 from logger_config import logger
+import json
 
 def create_spark_session():
     """Inicializa y devuelve una SparkSession."""
     logger.info("Creando SparkSession...")
-    return SparkSession.builder.appName("SparkModeling").getOrCreate()
+    return SparkSession.builder.appName("SparkModeling") \
+            .config("spark.jars.packages", "io.delta:delta-core_2.12:2.1.0") \
+            .config("spark.sql.catalog.spark_catalog", "org.apache.spark.sql.delta.catalog.DeltaCatalog") \
+            .enableHiveSupport() \
+            .getOrCreate()
 
 def read_data(spark):
     """
@@ -21,26 +28,52 @@ def read_data(spark):
     """
     logger.info("Leyendo datos desde GCS...")
     gcs_bucket_name = "naturgy-gcs"
-    input_path_energy = f"gs://{gcs_bucket_name}/silver_data/energy_silver.parquet"
-    input_path_weather = f"gs://{gcs_bucket_name}/silver_data/weather_features_silver.parquet"
+    input_path_energy = f"gs://{gcs_bucket_name}/silver_data/energy_silver.delta"
+    input_path_weather = f"gs://{gcs_bucket_name}/silver_data/weather_features_silver.delta"
     
-    weather_df = spark.read.parquet(input_path_weather)
+    weather_df = spark.read.format('delta').load(input_path_weather)
     weather_df = weather_df.toDF(*[col.strip() for col in weather_df.columns])
 
-    energy_df = spark.read.parquet(input_path_energy)
+    energy_df = spark.read.format('delta').load(input_path_energy)
     energy_df = energy_df.toDF(*[col.strip() for col in energy_df.columns])
 
     logger.info("Datos cargados correctamente.")
     return weather_df, energy_df
 
-def process_dim_time(weather_df):
+
+
+
+
+
+def process_dim_time(weather_df, spark):
     """
     Genera la tabla dimensión de tiempo.
     :param weather_df: DataFrame weather
     :return dim_time: dimensión del tiempo
     """
+    time_bounds = weather_df.selectExpr(
+    "min(time) as min_time",
+    "max(time) as max_time"
+    ).collect()[0]
+
+    min_time = time_bounds["min_time"]
+    max_time = time_bounds["max_time"]
+    time_df = spark.createDataFrame(
+        [(min_time, max_time)],
+        ["start", "end"]
+    ).select(
+        explode(
+            sequence(
+                lit(min_time),
+                lit(max_time),
+                expr("interval 1 hour")
+            )
+        ).alias("time")
+    )
+
+
     logger.info("Procesando tabla dim_time...")
-    dim_time = weather_df.select("time").withColumn("year", year("time")) \
+    dim_time = time_df.withColumn("year", year("time")) \
         .withColumn("month", month("time")) \
         .withColumn("week_day", dayofweek("time")) \
         .withColumn("week_number_of_month", weekofyear("time")) \
@@ -55,10 +88,10 @@ def process_dim_time(weather_df):
             ((col("month") == 6) & (col("day") >= 21)) | ((col("month") == 7)) | ((col("month") == 8)) | ((col("month") == 9) & (col("day") <= 20)),
             "summer"
         ).otherwise("autumn")) \
-        .withColumn("timeID", sha2(col("time").cast("string"), 256)) \
-        .drop("day")
+        .withColumn("timeID", sha2(col("time").cast("string"), 256)) 
+    dim_time=dim_time.withColumn("day_month_year", concat_ws("-", col("day"), col("month"), col("year")))
 
-    desired_order_time = ["timeID", "time", "week_day", "week_number_of_month", "month", "season", "year"]
+    desired_order_time = ["timeID", "time", "day", "week_day", "week_number_of_month", "month", "day_month_year", "season", "year"]
     dim_time = dim_time.select(*desired_order_time)
     return dim_time
 
@@ -70,13 +103,10 @@ def process_dim_city(weather_df):
     :return dim_city: dimensión de la ciudad
     """
     logger.info("Procesando tabla dim_city...")
-    city_data = {
-        "Madrid": {"latitude": 40.414852, "longitude": -3.69765, "province_population": 6825000},
-        " Barcelona": {"latitude": 41.38594, "longitude": 2.17451, "province_population": 5877672},
-        "Valencia": {"latitude": 39.47192, "longitude": -0.37593, "province_population": 2710808},
-        "Seville": {"latitude": 37.38995, "longitude": -5.98578, "province_population":  1968624 },
-        "Bilbao": {"latitude": 43.26292, "longitude": -2.93623, "province_population": 1153000},
-    }
+    with open("external_data.json", "r") as file:
+        data = json.load(file)
+
+    city_data = data["city_data"]
 
     dim_city = weather_df.select("city_name").distinct().withColumn("cityID", sha2(col('city_name'), 256)) \
         .withColumn("latitude", lit("Unknown")) \
@@ -91,7 +121,7 @@ def process_dim_city(weather_df):
     desired_order_city = ["cityID", "city_name", "latitude", "longitude", "province_population"]
     return dim_city.select(*desired_order_city)
 
-def process_fact_weather(weather_df, dim_city):
+def process_fact_weather(weather_df, dim_city, dim_time):
     """
     Genera la tabla de hechos del clima.
         :param weather_df: DataFrame weather
@@ -100,48 +130,85 @@ def process_fact_weather(weather_df, dim_city):
     """
     logger.info("Procesando tabla fact_weather...")
     return weather_df.join(dim_city, ["city_name"], "left") \
-        .selectExpr(
-            "time", "cityID", "temp", "temp_min", "temp_max", "pressure", "humidity",
+        .join(dim_time.select("time", "timeID"), ["time"], "left") \
+        .select(
+            "timeID", "cityID", "temp", "pressure", "humidity",
             "wind_speed", "wind_deg", "rain_1h", "rain_3h", "snow_3h", "clouds_all",
             "weather_main", "weather_description") \
-        .withColumn("weatherID", sha2(concat_ws("_", "time", "cityID"), 256))
+        .withColumn("weatherID", sha2(concat_ws("_", "timeID", "cityID"), 256))
 
-def process_dim_energy_type(energy_df):
+def process_dim_energy_type(energy_df, spark):
     """
     Genera la tabla dimensión de tipos de energía.
-        :param energy_df: DataFrame energy
-        :param dim_energy_type: dimensión tipo de energía    
+    :param energy_df: DataFrame energy
+    :param spark: SparkSession
+    :return dim_energy_type: dimensión tipo de energía    
     """
     logger.info("Procesando tabla dim_energy_type...")
     energy_columns = [col for col in energy_df.columns if col.startswith("generation")]
-    energy_types = [(col_name.replace("generation ", ""),
-                    any(kw in col_name for kw in ["biomass", "geothermal", "renewable", "hydro", "marine", "solar", "wind"]))
-                    for col_name in energy_columns]
+    energy_columns.remove('generation_waste')
 
+    with open("external_data.json", "r") as file:
+        data = json.load(file)
+
+    renewable_energies = data["renewable_energies"]
+    
+    energy_types = [(col_name, any(kw in col_name for kw in renewable_energies)) for col_name in energy_columns]
+    
     dim_energy_type = spark.createDataFrame(energy_types, ["name", "is_renewable"]) \
         .withColumn("energyID", sha2(col("name").cast("string"), 256))
 
     return dim_energy_type.select("energyID", "name", "is_renewable")
 
+def rename_dim_energy_type_data(dim_energy_type):
+    dim_energy_type = dim_energy_type.withColumn(
+        "name",
+        when(col("name") =="generation_nuclear", "Nuclear")
+        .when(col("name") =="generation_other", "Otras")
+        .when(col("name") =="generation_fossil_oil", "Petróleo fósil")
+        .when(col("name") =="generation_fossil_oil_shale", "Esquisto bituminoso")
+        .when(col("name") =="generation_fossil_peat", "Turba fósil")
+        .when(col("name") =="generation_fossil_brown_coal_or_lignite", "Carbón pardo o lignito")
+        .when(col("name") =="generation_fossil_coal-derived_gas", "Gas derivado del carbón")
+        .when(col("name") =="generation_fossil_gas", "Gas fósil")
+        .when(col("name") =="generation_fossil_hard_coal", "Carbón duro")
+        .when(col("name") =="generation_hydro_pumped_storage_consumption", "Consumo de bombeo hidráulico")
+        .when(col("name") =="generation_hydro_run-of-river_and_poundage", "Hidráulica fluyente y embalsada")
+        .when(col("name") =="generation_hydro_water_reservoir", "Embalse hidráulico")
+        .when(col("name") =="generation_marine", "Energía marina")
+        .when(col("name") =="generation_other_renewable", "Otras renovables")
+        .when(col("name") =="generation_solar", "Solar")
+        .when(col("name") =="generation_wind_offshore", "Eólica marina")
+        .when(col("name") =="generation_wind_onshore", "Eólica terrestre")
+        .when(col("name") =="generation_hydro_pumped_storage_aggregated", "Bombeo hidráulico agregado")
+        .when(col("name") =="generation_biomass", "Biomasa")
+        .when(col("name") =="generation_geothermal", "Geotérmica")
+    )
+    return dim_energy_type
+
 def process_fact_energy_generation(energy_df, dim_energy_type):
     """
     Transforma datos de energía de ancho a largo (wide to long).
-
     :param energy_df: DataFrame energy
     :param dim_energy_type: dimensión tipo energía
     :return fact_energy_generation: tabla de hechos sobre la generación de energía    
     """
     logger.info("Procesando tabla fact_energy_generation...")
     energy_columns = [col for col in energy_df.columns if col.startswith("generation")]
-    mappings = list(chain.from_iterable([(lit(k.replace("generation ", "")), col(k)) for k in energy_columns]))
+    energy_columns.remove("generation_waste")
 
+    mappings = list(chain.from_iterable([(lit(k), col(k)) for k in energy_columns]))
+    
     energy_long_df = energy_df.select("time", *energy_columns) \
         .select("time", create_map(*mappings).alias("generation_map")) \
         .select("time", explode("generation_map").alias("energy_name", "value"))
 
+    energy_long_df = energy_long_df.withColumn("value", col("value").cast("int"))
+
     return energy_long_df.join(dim_energy_type, energy_long_df.energy_name == dim_energy_type.name, "left") \
         .select("time", "energyID", "value") \
         .withColumn("generationID", sha2(concat_ws("_", "time", "energyID"), 256))
+
 
 def process_fact_energy_usage(energy_df):
     """
@@ -152,9 +219,9 @@ def process_fact_energy_usage(energy_df):
     logger.info("Procesando tabla fact_energy_usage...")
     return energy_df.selectExpr(
         "time",
-        "`price actual` as price_actual",
-        "`total load actual` as total_load_actual",
-        "`generation waste` as generation_waste"
+        "price_actual",
+        "total_load_actual",
+        "generation_waste"
     ).withColumn("usageID", sha2(col("time").cast("string"), 256))
 
 def process_fact_elec_forecast(energy_df):
@@ -166,8 +233,8 @@ def process_fact_elec_forecast(energy_df):
     logger.info("Procesando tabla fact_elec_forecast...")
     return energy_df.selectExpr(
         "time",
-        "`price day ahead` as price_forecast",
-        "`total load forecast` as total_load_forecast"
+        "`price_day_ahead` as price_forecast",
+        "total_load_forecast"
     ).withColumn("elecForecastID", sha2(col("time").cast("string"), 256))
 
 def process_fact_weather_forecast(energy_df):
@@ -179,8 +246,8 @@ def process_fact_weather_forecast(energy_df):
     logger.info("Procesando tabla fact_weather_forecast...")
     return energy_df.selectExpr(
         "time",
-        "`forecast solar day ahead` as forecast_solar_day_ahead",
-        "`forecast wind onshore day ahead` as forecast_wind_onshore_day_ahead"
+        "forecast_solar_day_ahead",
+        "forecast_wind_onshore_day_ahead"
     ).withColumn("weatherForecastID", sha2(col("time").cast("string"), 256))
 
 def join_with_time_id(fact_df, dim_time):
@@ -192,7 +259,7 @@ def join_with_time_id(fact_df, dim_time):
     """
     return fact_df.join(dim_time.select("time", "timeID"), on="time", how="left").drop("time")
 
-def take_new_data(df, name, unique_key):
+def take_new_data(df, name, unique_key, spark):
     """
     Compara la nueva tabla con BigQuery para evitar duplicados.
 
@@ -205,14 +272,14 @@ def take_new_data(df, name, unique_key):
         logger.info(f"Comprobando existencia de tabla: {name}")
         existing_table = spark.read \
             .format("bigquery") \
-            .option("table", f"naturgy-gcs.naturgy_data.{name}") \
+            .option("table", f"gold_data.{name}") \
             .load()
         return df.join(existing_table, on=unique_key, how="left_anti")
-    except AnalysisException:
+    except (AnalysisException, Py4JJavaError):
         logger.info(f"Tabla {name} no existe aún, se considerará toda la tabla como nueva.")
         return df
 
-def save_table(df, name, unique_key):
+def save_table(df, name, unique_key, spark):
     """
     Guarda la tabla en BigQuery.
     :param df: Dataframe a insertar
@@ -220,10 +287,10 @@ def save_table(df, name, unique_key):
     :param unique_key: columnas únicas de la tabla
     """
     logger.info(f"Guardando tabla: {name}")
-    new_data = take_new_data(df, name, unique_key)
+    new_data = take_new_data(df, name, unique_key, spark)
     new_data.write \
         .format("bigquery") \
-        .option("table", f"naturgy-gcp.naturgy_data.{name}") \
+        .option("table", f"gold_data.{name}") \
         .option("temporaryGcsBucket", "temporal_bucket_trials") \
         .mode("append") \
         .save()
@@ -232,29 +299,30 @@ def main():
     spark = create_spark_session()
     weather_df, energy_df = read_data(spark)
 
-    dim_time = process_dim_time(weather_df)
+    dim_time = process_dim_time(weather_df, spark)
     dim_city = process_dim_city(weather_df)
-    fact_weather = process_fact_weather(weather_df, dim_city)
-    dim_energy_type = process_dim_energy_type(energy_df)
+    fact_weather = process_fact_weather(weather_df, dim_city, dim_time)
+    dim_energy_type = process_dim_energy_type(energy_df, spark)
     fact_energy_generation = process_fact_energy_generation(energy_df, dim_energy_type)
     fact_energy_usage = process_fact_energy_usage(energy_df)
     fact_elec_forecast = process_fact_elec_forecast(energy_df)
     fact_weather_forecast = process_fact_weather_forecast(energy_df)
+    dim_energy_type=rename_dim_energy_type_data(dim_energy_type)
 
-    fact_weather = join_with_time_id(fact_weather, dim_time)
+    # fact_weather = join_with_time_id(fact_weather, dim_time)
     fact_energy_generation = join_with_time_id(fact_energy_generation, dim_time)
     fact_energy_usage = join_with_time_id(fact_energy_usage, dim_time)
     fact_elec_forecast = join_with_time_id(fact_elec_forecast, dim_time)
     fact_weather_forecast = join_with_time_id(fact_weather_forecast, dim_time)
 
-    save_table(dim_time, "dim_time", ["time"])
-    save_table(dim_city, "dim_city", ["city_name"])
-    save_table(dim_energy_type, "dim_energy_type", ["name"])
-    save_table(fact_weather, "fact_weather", ["timeID", "cityID"])
-    save_table(fact_energy_usage, "fact_energy_usage", ["timeID"])
-    save_table(fact_weather_forecast, "fact_weather_forecast", ["timeID"])
-    save_table(fact_elec_forecast, "fact_elec_forecast", ["timeID"])
-    save_table(fact_energy_generation, "fact_energy_generation", ["timeID", "energyID"])
+    save_table(dim_time, "dim_time", ["time"], spark)
+    save_table(dim_city, "dim_city", ["city_name"], spark)
+    save_table(dim_energy_type, "dim_energy_type", ["name"], spark)
+    save_table(fact_weather, "fact_weather", ["timeID", "cityID"], spark)
+    save_table(fact_energy_usage, "fact_energy_usage", ["timeID"], spark)
+    save_table(fact_weather_forecast, "fact_weather_forecast", ["timeID"], spark)
+    save_table(fact_elec_forecast, "fact_elec_forecast", ["timeID"], spark)
+    save_table(fact_energy_generation, "fact_energy_generation", ["timeID", "energyID"], spark)
 
     logger.info("Proceso finalizado.")
     spark.stop()

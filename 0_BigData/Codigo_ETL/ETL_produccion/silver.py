@@ -4,6 +4,9 @@ from pyspark.sql import SparkSession
 from pyspark.sql.functions import col, avg, broadcast
 from logger_config import logger
 from data_quality import get_data, validate_energy_schema, validate_weather_schema
+from delta.tables import DeltaTable
+from delta import configure_spark_with_delta_pip
+
 
 def clean_energy_data(df):
     """
@@ -13,22 +16,33 @@ def clean_energy_data(df):
     
     # Eliminar duplicados
     df_cleaned = df.dropDuplicates(['time'])
+    df_cleaned = df_cleaned.toDF(*[col.replace(" ", "_")
+                 .replace("(", "")
+                 .replace(")", "")
+                 .replace("{", "")
+                 .replace("}", "")
+                 .replace(";", "")
+                 .replace(",", "")
+                 .replace("\t", "")
+                 .replace("\n", "")
+                 .replace("=", "")
+                 for col in df_cleaned.columns])
     logger.info(f"Registros después de eliminar duplicados: {df_cleaned.count()}")
     
     # Eliminar las 18 filas con nulos generalizados
-    df_cleaned = df_cleaned.dropna(subset=["generation fossil brown coal or lignite"])
+    df_cleaned = df_cleaned.dropna(subset=["generation_fossil_brown_coal_or_lignite"])
     logger.info(f"Registros después de eliminar filas con nulos generalizados: {df_cleaned.count()}")
     
     # Imputación de nulos con la mediana
     logger.info("Calculando medianas para imputación de nulos.")
     medians = {
-        'generation biomass': df_cleaned.approxQuantile('generation biomass', [0.5], 0.01)[0],
-        'generation fossil oil': df_cleaned.approxQuantile('generation fossil oil', [0.5], 0.01)[0],
-        'generation hydro pumped storage consumption': df_cleaned.approxQuantile('generation hydro pumped storage consumption', [0.5], 0.01)[0],
-        'generation hydro run-of-river and poundage': df_cleaned.approxQuantile('generation hydro run-of-river and poundage', [0.5], 0.01)[0],
-        'generation marine': df_cleaned.approxQuantile('generation marine', [0.5], 0.01)[0],
-        'generation waste': df_cleaned.approxQuantile('generation waste', [0.5], 0.01)[0],
-        'total load actual': df_cleaned.approxQuantile('total load actual', [0.5], 0.01)[0]
+        'generation_biomass': df_cleaned.approxQuantile('generation_biomass', [0.5], 0.01)[0],
+        'generation_fossil_oil': df_cleaned.approxQuantile('generation_fossil_oil', [0.5], 0.01)[0],
+        'generation_hydro_pumped_storage_consumption': df_cleaned.approxQuantile('generation_hydro_pumped_storage_consumption', [0.5], 0.01)[0],
+        'generation_hydro_run-of-river_and_poundage': df_cleaned.approxQuantile('generation_hydro_run-of-river_and_poundage', [0.5], 0.01)[0],
+        'generation_marine': df_cleaned.approxQuantile('generation_marine', [0.5], 0.01)[0],
+        'generation_waste': df_cleaned.approxQuantile('generation_waste', [0.5], 0.01)[0],
+        'total_load_actual': df_cleaned.approxQuantile('total_load_actual', [0.5], 0.01)[0]
     }
     
     df_cleaned = df_cleaned.fillna(medians)
@@ -36,8 +50,8 @@ def clean_energy_data(df):
     
     # Imputación de columnas completamente nulas con 'Unknown'
     df_cleaned = df_cleaned.fillna({
-        'generation hydro pumped storage aggregated': 'Unknown',
-        'forecast wind offshore eday ahead': 'Unknown'
+        'generation_hydro_pumped_storage_aggregated': 'Unknown',
+        'forecast_wind_offshore_eday_ahead': 'Unknown'
     })
     logger.info("Imputación de columnas categóricas con 'Unknown' completada.")
     
@@ -51,6 +65,17 @@ def clean_weather_data(df):
     
     # Eliminar duplicados
     df_cleaned = df.dropDuplicates(["dt_iso", "city_name"])
+    df_cleaned = df_cleaned.toDF(*[col.replace(" ", "_")
+                 .replace("(", "")
+                 .replace(")", "")
+                 .replace("{", "")
+                 .replace("}", "")
+                 .replace(";", "")
+                 .replace(",", "")
+                 .replace("\t", "")
+                 .replace("\n", "")
+                 .replace("=", "")
+                 for col in df_cleaned.columns])
     logger.info(f"Registros después de eliminar duplicados: {df_cleaned.count()}")
     
     # Conversión de unidades
@@ -80,15 +105,21 @@ def main():
     Orquesta la lectura, limpieza y escritura de los datasets.
     """
     logger.info("Iniciando pipeline ETL principal.")
-    spark = SparkSession.builder.appName("NaturgyETL").getOrCreate()
+   
+    builder = SparkSession.builder \
+    .appName("sparkETL") \
+
+    spark = configure_spark_with_delta_pip(builder).getOrCreate()
+
+    logger.info(f"  VERSION SPARK: {spark.version}")
 
     # --- CONFIGURACIÓN DE RUTAS ---
     gcs_bucket_name = "naturgy-gcs"
     input_path_energy = f"gs://{gcs_bucket_name}/raw_data/energy_dataset.csv"
     input_path_weather = f"gs://{gcs_bucket_name}/raw_data/weather_features.csv"
     
-    output_path_energy = f"gs://{gcs_bucket_name}/silver_data/energy_silver.parquet"
-    output_path_weather = f"gs://{gcs_bucket_name}/silver_data/weather_features_silver.parquet"
+    output_path_energy = f"gs://{gcs_bucket_name}/silver_data/energy_silver.delta"
+    output_path_weather = f"gs://{gcs_bucket_name}/silver_data/weather_features_silver.delta"
     
     logger.info(f"Bucket de GCS configurado: {gcs_bucket_name}")
     logger.info(f"Ruta de salida para Energía (Silver): {output_path_energy}")
@@ -119,11 +150,38 @@ def main():
             logger.info("--- Iniciando la escritura de los datos limpios (Capa Silver) ---")
             
             logger.info(f"Escribiendo fichero de energía limpio en: {output_path_energy}")
-            clean_energy_df.write.mode("overwrite").parquet(output_path_energy)
+            try:
+                delta_table = DeltaTable.forPath(spark, output_path_energy)
+                delta_table.alias("existing") \
+                    .merge(
+                        clean_energy_df.alias("new"),
+                        "existing.time = new.time"
+                    ) \
+                    .whenMatchedUpdateAll() \
+                    .whenNotMatchedInsertAll() \
+                    .execute()
+                print('ATENCIONNNNNNNNN delta ya existia')
+
+            except:
+                clean_energy_df.write.format("delta").mode("overwrite").save(output_path_energy)
+                print('ATENCIONNNNNNNNN guardando en silver delta')
+
             logger.info("Escritura de energía (Silver) completada.")
             
             logger.info(f"Escribiendo fichero de clima limpio en: {output_path_weather}")
-            clean_weather_df.write.mode("overwrite").parquet(output_path_weather)
+            try:
+                delta_table = DeltaTable.forPath(spark, output_path_weather)
+                delta_table.alias("existing") \
+                    .merge(
+                        clean_weather_df.alias("new"),
+                        "existing.time = new.time AND existing.city_name=new.city_name"
+                    ) \
+                    .whenMatchedUpdateAll() \
+                    .whenNotMatchedInsertAll() \
+                    .execute()
+            except:
+                clean_weather_df.write.format("delta").mode("overwrite").save(output_path_weather)
+
             logger.info("Escritura de clima (Silver) completada.")
 
     except Exception as e:
