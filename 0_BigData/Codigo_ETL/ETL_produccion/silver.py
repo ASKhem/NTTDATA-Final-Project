@@ -3,7 +3,7 @@ import logging
 from pyspark.sql import SparkSession
 from pyspark.sql.functions import col, avg, broadcast
 from logger_config import logger
-from data_quality import get_data, validate_energy_schema, validate_weather_schema
+from data_utils import get_data, validate_energy_schema, validate_weather_schema
 from delta.tables import DeltaTable
 from delta import configure_spark_with_delta_pip
 

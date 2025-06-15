@@ -1,45 +1,66 @@
-import pandas as pd
+from pyspark.sql import SparkSession
 from openpyxl import load_workbook
+from io import BytesIO
+import gcsfs
+from google.cloud import storage
 
-ruta_excel = 'dq_report.xlsx'
-weather_hoja = 'Tiempo'               
-col_weather = 'D'
-col_total_weather = 'E'               
+def generate_data_report(gcs_bucket_name):
+    # Inicializar Spark
+    spark = SparkSession.builder.appName("DataReport").getOrCreate()
 
-weather_report = 'weather_report.csv' 
-energy_report = 'energy_report.csv'          
-col_energy = 'D'  
-col_total_energy = 'E'               
+    # Rutas de archivos
+    ruta_excel_gcs = f"gs://{gcs_bucket_name}/reports/dq_report.xlsx"
+    weather_report = f"gs://{gcs_bucket_name}/reports/weather_quality_checks.csv"
+    energy_report = f"gs://{gcs_bucket_name}/reports/energy_quality_checks.csv"
+    salida_excel_local = "dq_report_results.xlsx"
+    salida_excel_gcs = f"reports/dq_report_results.xlsx"
 
-energy_hoja = 'Energia'               
+    # Columnas y hojas
+    weather_hoja = 'Tiempo'
+    col_weather, col_total_weather = 'D', 'E'
+    energy_hoja = 'Energia'
+    col_energy, col_total_energy = 'D', 'E'
 
-salida_excel = 'dq_report_results.xlsx' 
+    # Leer archivos CSV con Spark
+    weather_df = spark.read.csv(weather_report, header=True, inferSchema=True)
+    energy_df = spark.read.csv(energy_report, header=True, inferSchema=True)
 
-weather_df = pd.read_csv(weather_report, header=0)
-weather_data = weather_df.iloc[0].tolist()
+    # Convertir datos en listas
+    weather_data = weather_df.collect()[0]
+    energy_data = energy_df.collect()[0]
 
-energy_df = pd.read_csv(energy_report, header=0)
-energy_data = energy_df.iloc[0].tolist()
-wb = load_workbook(ruta_excel)
-hoja_wth = wb[weather_hoja]
-hoja_eng = wb[energy_hoja]
+    # Leer Excel desde GCS con gcsfs
+    fs = gcsfs.GCSFileSystem()
+    with fs.open(ruta_excel_gcs, 'rb') as f:
+        in_mem_file = BytesIO(f.read())
 
-total_rows_weather = weather_df.iloc[0, -1] 
-for i, valor in enumerate(weather_data, start=2):
-    celda = f'{col_weather}{i}'
-    hoja_wth[celda] = valor
-    if valor !='-':
-        celda = f'{col_total_weather}{i}'
-        hoja_wth[celda] = total_rows_weather
+    # Cargar libro de Excel
+    wb = load_workbook(in_mem_file)
+    hoja_wth = wb[weather_hoja]
+    hoja_eng = wb[energy_hoja]
 
-total_rows_energy = energy_df.iloc[0, -1] 
-for i, valor in enumerate(energy_data, start=2):
-    celda = f'{col_energy}{i}'
-    hoja_eng[celda] = valor
-    if valor !='-':
-        celda = f'{col_total_weather}{i}'
-        hoja_eng[celda] = total_rows_energy
+    # Procesar datos de clima
+    total_rows_weather = weather_df.collect()[0][-1]
+    for i, valor in enumerate(weather_data, start=2):
+        hoja_wth[f'{col_weather}{i}'] = valor
+        if valor != '-':
+            hoja_wth[f'{col_total_weather}{i}'] = total_rows_weather
 
-wb.save(salida_excel)
+    # Procesar datos de energía
+    total_rows_energy = energy_df.collect()[0][-1]
+    for i, valor in enumerate(energy_data, start=2):
+        hoja_eng[f'{col_energy}{i}'] = valor
+        if valor != '-':
+            hoja_eng[f'{col_total_energy}{i}'] = total_rows_energy
 
-print("Reporte realizado con éxito")
+    # Guardar archivo Excel localmente
+    wb.save(salida_excel_local)
+
+    # Subir archivo resultante a GCS
+    client = storage.Client()
+    bucket = client.bucket(gcs_bucket_name)
+    blob = bucket.blob(salida_excel_gcs)
+    blob.upload_from_filename(salida_excel_local)
+
+    print("Reporte realizado con éxito y guardado en GCS.")
+    spark.stop()
