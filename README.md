@@ -48,7 +48,7 @@ Se utilizan dos datasets principales, ambos con granularidad horaria para el per
 
 La solución propuesta se basa en una arquitectura moderna y escalable, utilizando principalmente servicios de Google Cloud Platform (GCP), Apache Spark para el procesamiento ETL, y Power BI para la visualización.
 
-![Diagrama de Arquitectura](img/arquitectura_proyecto.jpeg)
+![Diagrama de Arquitectura](img/arquitectura_proyecto.png)
 
 **Componentes Tecnológicos Principales:**
 *   **Fuentes de Datos:** Archivos `energy_dataset.csv` y `weather_features.csv`.
