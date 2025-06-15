@@ -1,7 +1,7 @@
 from pyspark.sql import SparkSession
 from pyspark.sql.functions import (
     col, year, month, dayofmonth, dayofweek, weekofyear, when, expr, lit,
-    create_map, sha2, concat_ws, explode, sequence
+    create_map, sha2, concat_ws, explode, sequence, hour
 
 )
 from itertools import chain
@@ -78,6 +78,7 @@ def process_dim_time(weather_df, spark):
         .withColumn("week_day", dayofweek("time")) \
         .withColumn("week_number_of_month", weekofyear("time")) \
         .withColumn("day", dayofmonth(col("time"))) \
+        .withColumn("hour", hour(col("time"))) \
         .withColumn("season", when(
             ((col("month") == 12) & (col("day") >= 21)) | ((col("month") == 1)) | ((col("month") == 2)) | ((col("month") == 3) & (col("day") <= 20)),
             "winter"
@@ -91,7 +92,7 @@ def process_dim_time(weather_df, spark):
         .withColumn("timeID", sha2(col("time").cast("string"), 256)) 
     dim_time=dim_time.withColumn("day_month_year", concat_ws("-", col("day"), col("month"), col("year")))
 
-    desired_order_time = ["timeID", "time", "day", "week_day", "week_number_of_month", "month", "day_month_year", "season", "year"]
+    desired_order_time = ["timeID", "time", "hour", "day", "week_day", "week_number_of_month", "month", "day_month_year", "season", "year"]
     dim_time = dim_time.select(*desired_order_time)
     return dim_time
 
