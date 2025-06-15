@@ -40,11 +40,6 @@ def read_data(spark):
     logger.info("Datos cargados correctamente.")
     return weather_df, energy_df
 
-
-
-
-
-
 def process_dim_time(weather_df, spark):
     """
     Genera la tabla dimensión de tiempo.
