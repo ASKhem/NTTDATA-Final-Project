@@ -110,7 +110,3 @@ Para una comprensión más profunda del mercado energético español y el contex
 
 - **[Contexto Energético en España (2015–2018)](Documentación_general/contexto_energetico.md):** Un análisis detallado de la demanda, generación, precios y regulación del sector eléctrico en el período de estudio.
 - **[Funcionamiento del Sistema Eléctrico Español](Documentación_general/sistema_electrico_espanol.md):** Una explicación de las fases (generación, transporte, distribución, comercialización) y los agentes que intervienen en el mercado eléctrico español.
-
-## 9. Próximos Pasos / Hoja de Ruta
-
-Este documento sirve como guía central para el desarrollo del proyecto. Los próximos pasos se centrarán en la ejecución de las fases de Big Data e Inteligencia Artificial descritas anteriormente, siguiendo el calendario tentativo del máster. El progreso se documentará en las respectivas carpetas y archivos del proyecto.

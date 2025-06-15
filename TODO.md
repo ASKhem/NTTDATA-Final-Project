@@ -12,9 +12,8 @@
   - ✅ Confirmación de los datasets (`energy_dataset.csv`, `weather_features.csv`).
   - ✅ Carga de los datasets crudos a la capa "raw" de GCS.
 
-- ⬜️ **3. Documentación Inicial**
-  - ⬜️ Creación del documento de modelo de datos ([`modelo_de_datos_ejemplo.md`](./0_BigData/Documentacion_BigData/modelo_de_datos_ejemplo..md)).
-  - ⬜️ Creación del documento de plan de pruebas ([`plan_de_pruebas_ejemplo.md`](./0_BigData/Documentacion_BigData/plan_de_pruebas_ejemplo.md)) la parte teórica se podría encontrar en ([`plan_de_pruebas_teorico.md`](./0_BigData/Documentacion_BigData/plan_de_pruebas_teorico.md)).
+- ✅ **3. Documentación Inicial**
+  - ✅ Creación del documento de plan de pruebas ([`plan_de_pruebas_ejemplo.md`](./0_BigData/Documentacion_BigData/plan_de_pruebas_ejemplo.md))
 
 - ✅ **4. Implementación Ingesta y Modelado (Pipeline ETL con Spark)**
   - ✅ Lectura de datos desde GCS.
@@ -24,19 +23,17 @@
   - ✅ **Consumo de Capa Silver**:
     - ✅ Carga de los datos de GCS a BigQuery para consumo de BI.
 
-- ⬜️ **5. Revisión y Ejecución de Calidad del Dato**
-  - ⬜️ Implementación de las validaciones del [`plan_de_pruebas_ejemplo.md`](./0_BigData/Documentacion_BigData/plan_de_pruebas_ejemplo.md) en el script de Spark.
-  - ⬜️ Generación de un reporte de calidad.
-  - ✅ Ejecución formal del plan de pruebas documentando evidencias.
+- ✅ **5. Revisión y Ejecución de Calidad del Dato**
+  - ✅ Implementación de las validaciones del [`plan_de_pruebas_ejemplo.md`](./0_BigData/Documentacion_BigData/plan_de_pruebas_ejemplo.md) en el script de Spark.
 
-- ⬜️ **6. Implementación Dashboard Power BI**
+- ✅ **6. Implementación Dashboard Power BI**
   - ✅ Conexión de Power BI a la tabla final en BigQuery.
   - ✅ Modelado de datos en Power BI (medidas DAX, jerarquías).
-  - ⬜️ Creación del cuadro de mando interactivo.
+  - ✅ Creación del cuadro de mando interactivo.
 
 ## Bloque 2: Inteligencia Artificial
 
-- ⬜️ **7. Feature Engineering Avanzado (Local)**
+- ✅ **7. Feature Engineering Avanzado (Local)**
   - ✅ Análisis Exploratorio de Datos (EDA) en un entorno local (ej. Jupyter Notebook).
   - ✅ Estudio de distribución, correlaciones, etc.
   - ✅ Creación de características específicas para el modelo (lags, medias móviles, indicadores de eventos climáticos).
@@ -52,14 +49,14 @@
 
 ## Bloque 3: Entrega Final
 
-- ⬜️ **9. Consolidación de Entregables**
-  - ⬜️ Organización de todo el código (ETL, IA), scripts, notebooks y artefactos (`.pbix`, modelo `.pkl`/`.h5`).
+- ✅ **9. Consolidación de Entregables**
+  - ✅ Organización de todo el código (ETL, IA), scripts, notebooks y artefactos (`.pbix`, modelo `.pkl`/`.h5`).
 
-- ⬜️ **10. Generación de Documentación Final**
-  - ⬜️ Informe de IA (máx. 3 páginas).
-  - ⬜️ Documentación de diseño y pruebas actualizada.
-  - ⬜️ Preparación de la presentación para la exposición (PPT).
+- ✅ **10. Generación de Documentación Final**
+  - ✅ Informe de IA (máx. 3 páginas).
+  - ✅ Documentación de diseño y pruebas actualizada.
+  - ✅ Preparación de la presentación para la exposición (PPT).
 
 - ⬜️ **11. Entrega y Exposición**
-    - ⬜️ Entrega final del proyecto.
+    - ✅ Entrega final del proyecto.
     - ⬜️ Exposición del trabajo.
